@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <FastLED.h>
 
-#include "comm.h"
+#include "comm.cpp"
 
 #define LED_PIN 5
 #define NUM_LEDS 64
