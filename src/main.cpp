@@ -1,3 +1,5 @@
+#define FASTLED_ALLOW_INTERRUPTS 0
+
 #include <Arduino.h>
 #include <FastLED.h>
 
@@ -40,7 +42,7 @@ void setup()
 
 void draw_frame_RGB(uint8_t frame)
 {
-    memcpy(leds, frame_data + frame * NUM_LEDS, NUM_LEDS);
+    memcpy(leds, frame_data + frame * NUM_LEDS * 3, NUM_LEDS * 3);
 }
 
 void draw_frame(uint8_t frame)
@@ -67,42 +69,17 @@ size_t get_frame_data_size(uint8_t color_format, uint8_t frame_count)
     }
 }
 
-void cmd_upload()
+void cmd_upload(Packet packet)
 {
-    if(frame_data == NULL)
-        free(frame_data);
+    free(frame_data);
 
-    while(Serial.available() < sizeof(CMD_UPLOAD)) ;
-
-    FastLED.showColor(CRGB::Aqua);
-    Serial.readBytes((uint8_t*)&meta_data, sizeof(CMD_UPLOAD));
+    memcpy(&meta_data, &packet.Data[1], sizeof(CMD_UPLOAD));
     auto frameDataSize = get_frame_data_size(meta_data.ColorFormat, meta_data.Frames);
     frame_data = (uint8_t*)malloc(frameDataSize);
+    memcpy(frame_data, &packet.Data[1] + sizeof(CMD_UPLOAD), frameDataSize);
 
-    if(frame_data == NULL)
-    {
-        FastLED.showColor(CRGB::Red);
-        Serial.write(COMM_RESP_ERROR);
-        Serial.flush();
-        return;
-    }
-
-    FastLED.showColor(CRGB::Green);
     Serial.write((uint8_t)COMM_RESP_OK);
     Serial.flush();
-    size_t currentPos = 0;
-    while(currentPos < frameDataSize)
-    {
-        // while(Serial.available() <= 0) ;
-        while(Serial.available() > 0 && currentPos < frameDataSize)
-        {
-            frame_data[currentPos] = (uint8_t)Serial.read();
-            currentPos++;
-
-            leds[currentPos % NUM_LEDS] = (currentPos / NUM_LEDS) % 2 ? CRGB::Blue : CRGB::Green;
-            FastLED.show();
-        }
-    }
 
     current_frame = 0;
     if(meta_data.Frames == 0)
@@ -112,17 +89,31 @@ void cmd_upload()
     lastFrameTime = millis();
 }
 
+void handlePacket(Packet packet)
+{
+    auto cmd = packet.Data[0];
+    switch(cmd)
+    {
+        case COMM_CMD_UPLOAD:
+            cmd_upload(packet);
+            break;
+    }
+}
+
 void loop()
 {
     if (Serial.available() > 0)
     {
-        switch(Serial.read())
+        auto packet = readPacket();
+        if(packet.Size == 0)
         {
-            case COMM_CMD_UPLOAD:
-                FastLED.showColor(CRGB::Yellow);
-                cmd_upload();
-                break;
+            Serial.flush();
         }
+        else
+        {
+            handlePacket(packet);
+        }
+        free(packet.Data);
     }
 
     if(meta_data.Frames == 0 || current_frame == meta_data.Frames)
