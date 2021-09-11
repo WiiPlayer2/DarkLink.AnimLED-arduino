@@ -1,4 +1,3 @@
-#pragma once
 #include <Arduino.h>
 
 #define COMM_CMD_UPDATE (uint8_t)0x01

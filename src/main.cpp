@@ -30,14 +30,12 @@ void setup()
         .setCorrection(TypicalSMD5050);
     FastLED.setBrightness(BRIGHTNESS);
 
-    for(int i = 0; i < 256; i += 10)
+    for(auto i = 0; i < NUM_LEDS * 2; i++)
     {
-        fill_rainbow(leds, NUM_LEDS, i);
-        delay(100);
+        leds[i % NUM_LEDS] = i < NUM_LEDS ? CRGB::White : CRGB::Black;
         FastLED.show();
+        delay(10);
     }
-
-    FastLED.clear(true);
 }
 
 void draw_frame_RGB(uint8_t frame)

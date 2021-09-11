@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "comm.h"
 
 #define HEADER_SIZE 5
@@ -8,6 +9,14 @@ void respond(uint8_t code)
 {
     Serial.write(code);
     Serial.flush();
+}
+
+bool waitForData()
+{
+    auto timeout = Serial.getTimeout();
+    auto startTime = millis();
+    while(Serial.available() <= 0 && millis() - startTime < timeout) ;
+    return Serial.available() > 0;
 }
 
 bool readPacket(Packet* packet)
@@ -43,7 +52,13 @@ bool readPacket(Packet* packet)
     size_t bytesRead = 0;
     while(bytesRead < packet->Size)
     {
-        bytesRead += Serial.readBytes(packet->Data + bytesRead, packet->Size - bytesRead);
+        auto currentBytesRead = Serial.readBytes(packet->Data + bytesRead, packet->Size - bytesRead);
+        if(currentBytesRead == 0)
+        {
+            respond(COMM_RESP_ERROR);
+            return false;
+        }
+        bytesRead += currentBytesRead;
     }
 
     respond(COMM_RESP_OK);
