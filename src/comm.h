@@ -6,6 +6,7 @@
 #define COMM_RESP_ERROR (uint8_t)0xFF
 
 #define COLOR_FORMAT_RGB 0x00
+#define COLOR_FORMAT_MONOCHROME 0x01
 
 typedef uint16_t packet_size_t;
 
