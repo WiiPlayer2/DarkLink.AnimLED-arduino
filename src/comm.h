@@ -8,6 +8,7 @@
 #define COLOR_FORMAT_RGB 0x00
 #define COLOR_FORMAT_MONOCHROME 0x01
 #define COLOR_FORMAT_2BPP 0x02
+#define COLOR_FORMAT_4BPP 0x03
 
 typedef uint16_t packet_size_t;
 

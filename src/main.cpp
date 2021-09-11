@@ -95,9 +95,18 @@ void draw_frame(uint8_t frame)
         case COLOR_FORMAT_2BPP:
             draw_frame_Palette(frame, 2);
             break;
+
+        case COLOR_FORMAT_4BPP:
+            draw_frame_Palette(frame, 4);
+            break;
     }
 
     FastLED.show();
+}
+
+size_t get_palette_frame_data_size(uint8_t frame_count, uint8_t bitDepth)
+{
+    return (pow(2, bitDepth) * sizeof(CRGB)) + ((frame_count * NUM_LEDS * bitDepth) / 8);
 }
 
 size_t get_frame_data_size(uint8_t color_format, uint8_t frame_count)
@@ -108,10 +117,13 @@ size_t get_frame_data_size(uint8_t color_format, uint8_t frame_count)
             return frame_count * 3 * NUM_LEDS;
 
         case COLOR_FORMAT_MONOCHROME:
-            return 6 + ((frame_count * NUM_LEDS) / 8);
+            return get_palette_frame_data_size(frame_count, 1);
 
         case COLOR_FORMAT_2BPP:
-            return (3 * 4) + ((frame_count * NUM_LEDS * 2) / 8);
+            return get_palette_frame_data_size(frame_count, 2);
+
+        case COLOR_FORMAT_4BPP:
+            return get_palette_frame_data_size(frame_count, 4);
 
         default:
             return 0;
