@@ -5,9 +5,10 @@
 
 const uint8_t header[HEADER_SIZE] = { 0xFE, 0xED, 0xC0, 0xFF, 0xEE };
 
-void respond(uint8_t code)
+void respond(uint8_t code, const char msg[] = "")
 {
     Serial.write(code);
+    Serial.println(msg);
     Serial.flush();
 }
 
@@ -26,7 +27,7 @@ bool readPacket(Packet* packet)
 
     if(size < HEADER_SIZE)
     {
-        respond(COMM_RESP_ERROR);
+        respond(COMM_RESP_ERROR, "Size too small for header.");
         return false;
     }
 
@@ -36,7 +37,7 @@ bool readPacket(Packet* packet)
     {
         if(headerBytes[i] != header[i])
         {
-            respond(COMM_RESP_ERROR);
+            respond(COMM_RESP_ERROR, "Header not found.");
             return false;
         }
     }
@@ -45,7 +46,7 @@ bool readPacket(Packet* packet)
     packet->Data = (uint8_t*)malloc(packet->Size);
     if(packet->Data == NULL)
     {
-        respond(COMM_RESP_ERROR);
+        respond(COMM_RESP_ERROR, "Packet too big to allocate.");
         return false;
     }
 
@@ -55,7 +56,7 @@ bool readPacket(Packet* packet)
         auto currentBytesRead = Serial.readBytes(packet->Data + bytesRead, packet->Size - bytesRead);
         if(currentBytesRead == 0)
         {
-            respond(COMM_RESP_ERROR);
+            respond(COMM_RESP_ERROR, "Reading timed out.");
             return false;
         }
         bytesRead += currentBytesRead;

@@ -73,15 +73,21 @@ void cmd_upload(Packet packet)
 
     memcpy(&meta_data, &packet.Data[1], sizeof(CMD_UPLOAD));
     auto frameDataSize = get_frame_data_size(meta_data.ColorFormat, meta_data.Frames);
-    frame_data = (uint8_t*)malloc(frameDataSize);
-    memcpy(frame_data, &packet.Data[1] + sizeof(CMD_UPLOAD), frameDataSize);
 
-    Serial.write((uint8_t)COMM_RESP_OK);
-    Serial.flush();
+    Packet frameDataPacket;
+    readPacket(&frameDataPacket);
+
+    if(frameDataPacket.Size != frameDataSize)
+        meta_data.Frames = 0;
+    else
+        frame_data = frameDataPacket.Data;
 
     current_frame = 0;
     if(meta_data.Frames == 0)
+    {
+        free(frame_data);
         return;
+    }
 
     draw_frame(0);
     lastFrameTime = millis();
