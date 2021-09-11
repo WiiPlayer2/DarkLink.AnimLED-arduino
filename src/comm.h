@@ -1,9 +1,10 @@
 #pragma once
 #include <Arduino.h>
 
-#define COMM_CMD_UPLOAD 0x01
-#define COMM_RESP_OK 0x00
-#define COMM_RESP_ERROR 0xFF
+#define COMM_CMD_UPDATE (uint8_t)0x01
+
+#define COMM_RESP_OK (uint8_t)0x00
+#define COMM_RESP_ERROR (uint8_t)0xFF
 
 #define COLOR_FORMAT_RGB 0x00
 
@@ -23,4 +24,4 @@ struct Packet
     uint8_t* Data;
 };
 
-Packet readPacket();
+bool readPacket(Packet* packet);

@@ -94,7 +94,7 @@ void handlePacket(Packet packet)
     auto cmd = packet.Data[0];
     switch(cmd)
     {
-        case COMM_CMD_UPLOAD:
+        case COMM_CMD_UPDATE:
             cmd_upload(packet);
             break;
     }
@@ -104,12 +104,8 @@ void loop()
 {
     if (Serial.available() > 0)
     {
-        auto packet = readPacket();
-        if(packet.Size == 0)
-        {
-            Serial.flush();
-        }
-        else
+        Packet packet;
+        if(readPacket(&packet))
         {
             handlePacket(packet);
         }
