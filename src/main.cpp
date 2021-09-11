@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <FastLED.h>
 
+#include "mathHelper.h"
 #include "comm.h"
 
 #define LED_PIN 5
@@ -33,17 +34,23 @@ void setup()
     FastLED.setBrightness(BRIGHTNESS);
 
     // Initial animation
-    meta_data.ColorFormat = COLOR_FORMAT_MONOCHROME;
+    meta_data.ColorFormat = COLOR_FORMAT_2BPP;
     meta_data.Frames = 4;
     meta_data.Loop = true;
-    meta_data.Delay = 100;
-    uint8_t initialFrameData[6 + 32] = {
+    meta_data.Delay = 150;
+    uint8_t initialFrameData[(sizeof(CRGB) * 4) + ((NUM_LEDS * 4 * 2) / 8)] = {
         0x00, 0x00, 0x00, // Color #0
-        0x00, 0xFF, 0x00, // Color #1
-        0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, // Frame #1
-        0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, // Frame #1
-        0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, // Frame #1
-        0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, // Frame #1
+        0xFF, 0x00, 0x00, // Color #1
+        0x00, 0xFF, 0x00, // Color #2
+        0x00, 0x00, 0xFF, // Color #3
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, // Frame #1
+        0x40, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Frame #1
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, // Frame #2
+        0x80, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Frame #2
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x01, // Frame #3
+        0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Frame #3
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x02, // Frame #4
+        0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Frame #4
     };
     frame_data = initialFrameData;
     current_frame = 0;
@@ -56,18 +63,20 @@ void draw_frame_RGB(uint8_t frame)
     memcpy(leds, frame_data + frame * NUM_LEDS * 3, NUM_LEDS * 3);
 }
 
-void draw_frame_Monochrome(uint8_t frame)
+void draw_frame_Palette(uint8_t frame, uint8_t bitDepth)
 {
+    auto paletteSize = pow(2, bitDepth);
     CRGB* palette = (CRGB*)frame_data;
-    auto paletteSize = 3 * 2;
-    auto bitOffset = paletteSize * 8 + frame * NUM_LEDS;
+    auto bitOffset = (paletteSize * 3 * 8) + (frame * NUM_LEDS * bitDepth);
+    uint8_t bitMask = ~(0xFF << bitDepth);
+
     for(int i = 0; i < NUM_LEDS; i++)
     {
-        auto currentBitOffset = bitOffset + i;
+        auto currentBitOffset = bitOffset + (i * bitDepth);
         auto byteOffset = currentBitOffset / 8;
         auto bitIndex = currentBitOffset % 8;
-        auto bit = (frame_data[byteOffset] >> bitIndex) & 1;
-        leds[i] = palette[bit];
+        auto colorIndex = (frame_data[byteOffset] >> bitIndex) & bitMask;
+        leds[i] = palette[colorIndex];
     }
 }
 
@@ -80,7 +89,11 @@ void draw_frame(uint8_t frame)
             break;
 
         case COLOR_FORMAT_MONOCHROME:
-            draw_frame_Monochrome(frame);
+            draw_frame_Palette(frame, 1);
+            break;
+
+        case COLOR_FORMAT_2BPP:
+            draw_frame_Palette(frame, 2);
             break;
     }
 
@@ -95,7 +108,10 @@ size_t get_frame_data_size(uint8_t color_format, uint8_t frame_count)
             return frame_count * 3 * NUM_LEDS;
 
         case COLOR_FORMAT_MONOCHROME:
-            return 3 + ((frame_count * NUM_LEDS) / 8);
+            return 6 + ((frame_count * NUM_LEDS) / 8);
+
+        case COLOR_FORMAT_2BPP:
+            return (3 * 4) + ((frame_count * NUM_LEDS * 2) / 8);
 
         default:
             return 0;
