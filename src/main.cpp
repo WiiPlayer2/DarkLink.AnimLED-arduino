@@ -1,4 +1,4 @@
-#define FASTLED_ALLOW_INTERRUPTS 0
+#include "common.h"
 
 #include <Arduino.h>
 #include <FastLED.h>
@@ -7,27 +7,18 @@
 #include "anim.h"
 
 #define LED_PIN 5
-#define NUM_LEDS 64
 #define CHIPSET WS2811
 #define COLOR_ORDER GRB
-CRGB leds[NUM_LEDS];
-
 #define BRIGHTNESS 16
 
-CMD_UPLOAD meta_data;
-uint8_t* frame_data = NULL;
-uint8_t current_frame;
-uint64_t lastFrameTime;
+CRGB leds[NUM_LEDS];
 
-Animation currentAnimation = NULL_ANIMATION;
-
-void draw_frame(uint8_t frame);
+AnimationState currentAnimation = {};
+byte* animationData = nullptr;
 
 void setup()
 {
     delay(3000);
-
-    meta_data.Frames = 0;
 
     Serial.begin(115200);
 
@@ -35,139 +26,66 @@ void setup()
         .setCorrection(TypicalSMD5050);
     FastLED.setBrightness(BRIGHTNESS);
 
-    // Initial animation
-    meta_data.ColorFormat = COLOR_FORMAT_2BPP;
-    meta_data.Frames = 4;
-    meta_data.Loop = true;
-    meta_data.Delay = 250;
-#define INITIAL_FRAME_DATA_SIZE ((sizeof(CRGB) * 4) + ((NUM_LEDS * 4 * 2) / 8))
-    uint8_t initialFrameData[INITIAL_FRAME_DATA_SIZE] = {
-        0x00, 0x00, 0x00, // Color #0
-        0xFF, 0x00, 0x00, // Color #1
-        0x00, 0xFF, 0x00, // Color #2
-        0x00, 0x00, 0xFF, // Color #3
-        0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, // Frame #1
-        0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, // Frame #1
-        0x55, 0x00, 0x55, 0x00, 0x55, 0x00, 0x55, 0x00, // Frame #2
-        0xAA, 0xFF, 0xAA, 0xFF, 0xAA, 0xFF, 0xAA, 0xFF, // Frame #2
-        0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, // Frame #3
-        0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, // Frame #3
-        0xFF, 0xAA, 0xFF, 0xAA, 0xFF, 0xAA, 0xFF, 0xAA, // Frame #4
-        0x00, 0x55, 0x00, 0x55, 0x00, 0x55, 0x00, 0x55, // Frame #4
-    };
-    frame_data = (uint8_t*)malloc(INITIAL_FRAME_DATA_SIZE);
-    memcpy(frame_data, initialFrameData, INITIAL_FRAME_DATA_SIZE);
-    current_frame = 0;
-    draw_frame(0);
-    lastFrameTime = millis();
+// //     // Initial animation
+// //     meta_data.ColorFormat = COLOR_FORMAT_2BPP;
+// //     meta_data.Frames = 4;
+// //     meta_data.Loop = true;
+// //     meta_data.Delay = 250;
+// // #define INITIAL_FRAME_DATA_SIZE ((sizeof(CRGB) * 4) + ((NUM_LEDS * 4 * 2) / 8))
+// //     uint8_t initialFrameData[INITIAL_FRAME_DATA_SIZE] = {
+// //         0x00, 0x00, 0x00, // Color #0
+// //         0xFF, 0x00, 0x00, // Color #1
+// //         0x00, 0xFF, 0x00, // Color #2
+// //         0x00, 0x00, 0xFF, // Color #3
+// //         0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, // Frame #1
+// //         0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, // Frame #1
+// //         0x55, 0x00, 0x55, 0x00, 0x55, 0x00, 0x55, 0x00, // Frame #2
+// //         0xAA, 0xFF, 0xAA, 0xFF, 0xAA, 0xFF, 0xAA, 0xFF, // Frame #2
+// //         0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, // Frame #3
+// //         0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, // Frame #3
+// //         0xFF, 0xAA, 0xFF, 0xAA, 0xFF, 0xAA, 0xFF, 0xAA, // Frame #4
+// //         0x00, 0x55, 0x00, 0x55, 0x00, 0x55, 0x00, 0x55, // Frame #4
+// //     };
+// //     frame_data = (uint8_t*)malloc(INITIAL_FRAME_DATA_SIZE);
+// //     memcpy(frame_data, initialFrameData, INITIAL_FRAME_DATA_SIZE);
+// //     current_frame = 0;
+// //     draw_frame(0);
+// //     lastFrameTime = millis();
 }
 
-void draw_frame_RGB(uint8_t frame)
+bool cmdUpdateAnimation(Packet packet)
 {
-    memcpy(leds, frame_data + frame * NUM_LEDS * 3, NUM_LEDS * 3);
+    free(animationData);
+    currentAnimation = {};
+    auto size = packet.Size - 1;
+    auto dataPtr = packet.Data + 1;
+
+    if(size < sizeof(AnimationMeta))
+        return true;
+
+    AnimationMeta* meta = (AnimationMeta*)dataPtr;
+    if(!validate(*meta, size))
+        return true;
+
+    animationData = dataPtr;
+    currentAnimation.Data.Meta = meta;
+    currentAnimation.Data.Frames = (AnimationFrame*)(dataPtr + sizeof(AnimationMeta));
+    currentAnimation.Data.ImageData = ((byte*) currentAnimation.Data.Frames) + sizeof(AnimationFrame) * meta->FrameCount;
+    initAnimation(leds, &currentAnimation);
+    return false;
 }
 
-void draw_frame_Palette(uint8_t frame, uint8_t bitDepth)
-{
-    auto paletteSize = 1 << bitDepth;
-    CRGB* palette = (CRGB*)frame_data;
-    auto bitOffset = (paletteSize * 3 * 8) + (frame * NUM_LEDS * bitDepth);
-    uint8_t bitMask = ~(0xFF << bitDepth);
-
-    for(int i = 0; i < NUM_LEDS; i++)
-    {
-        auto currentBitOffset = bitOffset + (i * bitDepth);
-        auto byteOffset = currentBitOffset / 8;
-        auto bitIndex = currentBitOffset % 8;
-        auto colorIndex = (frame_data[byteOffset] >> bitIndex) & bitMask;
-        leds[i] = palette[colorIndex];
-    }
-}
-
-void draw_frame(uint8_t frame)
-{
-    switch(meta_data.ColorFormat)
-    {
-        case COLOR_FORMAT_RGB:
-            draw_frame_RGB(frame);
-            break;
-
-        case COLOR_FORMAT_MONOCHROME:
-            draw_frame_Palette(frame, 1);
-            break;
-
-        case COLOR_FORMAT_2BPP:
-            draw_frame_Palette(frame, 2);
-            break;
-
-        case COLOR_FORMAT_4BPP:
-            draw_frame_Palette(frame, 4);
-            break;
-    }
-
-    FastLED.show();
-}
-
-size_t get_palette_frame_data_size(uint8_t frame_count, uint8_t bitDepth)
-{
-    return (pow(2, bitDepth) * sizeof(CRGB)) + ((frame_count * NUM_LEDS * bitDepth) / 8);
-}
-
-size_t get_frame_data_size(uint8_t color_format, uint8_t frame_count)
-{
-    switch(color_format)
-    {
-        case COLOR_FORMAT_RGB:
-            return frame_count * 3 * NUM_LEDS;
-
-        case COLOR_FORMAT_MONOCHROME:
-            return get_palette_frame_data_size(frame_count, 1);
-
-        case COLOR_FORMAT_2BPP:
-            return get_palette_frame_data_size(frame_count, 2);
-
-        case COLOR_FORMAT_4BPP:
-            return get_palette_frame_data_size(frame_count, 4);
-
-        default:
-            return 0;
-    }
-}
-
-void cmd_upload(Packet packet)
-{
-    free(frame_data);
-
-    memcpy(&meta_data, &packet.Data[1], sizeof(CMD_UPLOAD));
-    auto frameDataSize = get_frame_data_size(meta_data.ColorFormat, meta_data.Frames);
-
-    Packet frameDataPacket;
-    readPacket(&frameDataPacket);
-
-    if(frameDataPacket.Size != frameDataSize)
-        meta_data.Frames = 0;
-    else
-        frame_data = frameDataPacket.Data;
-
-    current_frame = 0;
-    if(meta_data.Frames == 0)
-    {
-        free(frame_data);
-        return;
-    }
-
-    draw_frame(0);
-    lastFrameTime = millis();
-}
-
-void handlePacket(Packet packet)
+// Returns true if packet can be freed.
+bool handlePacket(Packet packet)
 {
     auto cmd = packet.Data[0];
     switch(cmd)
     {
-        case COMM_CMD_UPDATE:
-            cmd_upload(packet);
-            break;
+        case COMM_CMD_UPDATE_ANIMATION:
+            return cmdUpdateAnimation(packet);
+
+        default:
+            return true;
     }
 }
 
@@ -176,27 +94,15 @@ void loop()
     if (Serial.available() > 0)
     {
         Packet packet;
+        bool freePacket = true;
         if(readPacket(&packet))
-        {
-            handlePacket(packet);
-        }
-        free(packet.Data);
+            freePacket = handlePacket(packet);
+        if(freePacket)
+            free(packet.Data);
     }
 
-    if(meta_data.Frames == 0 || current_frame == meta_data.Frames)
+    if(!currentAnimation.IsRunning)
         return;
 
-    auto current_time = millis();
-    if(current_time - lastFrameTime > meta_data.Delay)
-    {
-        lastFrameTime = current_time;
-        current_frame++;
-        if(meta_data.Loop && current_frame == meta_data.Frames)
-            current_frame = 0;
-        
-        if(current_frame == meta_data.Frames)
-            return;
-
-        draw_frame(current_frame);
-    }
+    tickAnimation(leds, &currentAnimation);
 }
