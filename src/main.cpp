@@ -39,11 +39,17 @@ bool cmdUpdateAnimation(Packet packet)
     auto dataPtr = packet.Data + 1;
 
     if(size < sizeof(AnimationMeta))
+    {
+        FastLED.showColor(CRGB::Yellow);
         return true;
+    }
 
     AnimationMeta* meta = (AnimationMeta*)dataPtr;
     if(!validate(*meta, size))
+    {
+        FastLED.showColor(CRGB::Red);
         return true;
+    }
 
     animationData = dataPtr;
     currentAnimation.Data.Meta = meta;
