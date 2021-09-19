@@ -9,15 +9,15 @@ const AnimationMeta Meta =
     NUM_IMAGES,
     NUM_FRAMES,
     0,
-    50,
+    250,
 };
 
 const AnimationFrame Frames[NUM_FRAMES] =
 {
-    { 1, 0 },
+    { 0, 1 },
     { 1, 1 },
-    { 1, 2 },
-    { 1, 3 },
+    { 2, 1 },
+    { 3, 1 },
 };
 
 const byte ImageData[((sizeof(CRGB) * 4) + ((NUM_LEDS * NUM_IMAGES * 2) / 8))] =
