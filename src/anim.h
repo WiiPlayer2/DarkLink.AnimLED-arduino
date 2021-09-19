@@ -19,12 +19,6 @@ typedef struct
 
 typedef struct
 {
-    byte FrameCount;
-    AnimationFrame* Frames;
-} AnimationFrames;
-
-typedef struct
-{
     byte ColorFormat;
     byte ImageCount;
     byte FrameCount;
@@ -34,9 +28,9 @@ typedef struct
 
 typedef struct
 {
-    AnimationMeta* Meta;
-    AnimationFrame* Frames;
-    byte* ImageData;
+    const AnimationMeta* Meta;
+    const AnimationFrame* Frames;
+    const byte* ImageData;
 } Animation;
 
 typedef struct
