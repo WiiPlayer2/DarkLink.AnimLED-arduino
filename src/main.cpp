@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include <FastLED.h>
 
-#include "mathHelper.h"
 #include "comm.h"
 
 #define LED_PIN 5
@@ -67,7 +66,7 @@ void draw_frame_RGB(uint8_t frame)
 
 void draw_frame_Palette(uint8_t frame, uint8_t bitDepth)
 {
-    auto paletteSize = pow(2, bitDepth);
+    auto paletteSize = 1 << bitDepth;
     CRGB* palette = (CRGB*)frame_data;
     auto bitOffset = (paletteSize * 3 * 8) + (frame * NUM_LEDS * bitDepth);
     uint8_t bitMask = ~(0xFF << bitDepth);
