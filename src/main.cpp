@@ -4,6 +4,7 @@
 #include <FastLED.h>
 
 #include "comm.h"
+#include "anim.h"
 
 #define LED_PIN 5
 #define NUM_LEDS 64
@@ -17,6 +18,8 @@ CMD_UPLOAD meta_data;
 uint8_t* frame_data = NULL;
 uint8_t current_frame;
 uint64_t lastFrameTime;
+
+Animation currentAnimation = NULL_ANIMATION;
 
 void draw_frame(uint8_t frame);
 

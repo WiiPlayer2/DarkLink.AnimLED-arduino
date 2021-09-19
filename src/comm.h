@@ -1,3 +1,5 @@
+#ifndef COMM_H
+#define COMM_H
 #include <Arduino.h>
 
 #define COMM_CMD_UPDATE (uint8_t)0x01
@@ -27,3 +29,6 @@ struct Packet
 };
 
 bool readPacket(Packet* packet);
+
+
+#endif /* COMM_H */
