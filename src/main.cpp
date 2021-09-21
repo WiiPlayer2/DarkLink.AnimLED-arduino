@@ -51,7 +51,7 @@ bool cmdUpdateAnimation(Packet packet)
         return true;
     }
 
-    animationData = dataPtr;
+    animationData = packet.Data;
     currentAnimation.Data.Meta = meta;
     currentAnimation.Data.Frames = (AnimationFrame*)(dataPtr + sizeof(AnimationMeta));
     currentAnimation.Data.ImageData = ((byte*) currentAnimation.Data.Frames) + sizeof(AnimationFrame) * meta->FrameCount;
